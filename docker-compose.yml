@@ -1,0 +1,78 @@
+version: '3'
+
+services:
+  web:
+    container_name: BackendNginx
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    links:
+      - backend
+    networks:
+      main:
+        aliases:
+          - BackendNginx
+
+  frontend:
+    container_name: FrontendReact
+    build:
+      context: './frontend'
+      dockerfile: Dockerfile
+    volumes:
+      - './frontend:/var/www'
+      - '/var/www/node_modules'
+    stdin_open: true
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    ports:
+      - 3000:3000
+    networks:
+      main:
+        aliases:
+          - FrontReact
+
+  backend:
+    container_name: BackendWebAPI
+    build:
+      context: './backend/MiRate'
+      dockerfile: Dockerfile
+    ports:
+      - "5005"
+    depends_on:
+      - database
+    networks:
+      main:
+        aliases:
+          - BackendWebAPI
+
+  database:
+    container_name: BackendDatabase
+    image: "postgres" 
+    volumes:
+      - ./db/db.sql:/docker-entrypoint-initdb.d/db.sql
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=123456
+      - POSTGRES_DB=mi_rate_db
+    ports:
+        - 5432:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      main:
+        aliases:
+          - BackendDatabase
+    
+volumes:
+  web:
+  backend:
+  database:
+
+networks:
+  main:
+    driver: bridge
